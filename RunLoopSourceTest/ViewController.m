@@ -16,10 +16,9 @@ static void performSourceEvent (void *info){
     customColor = [UIColor colorWithRed:(random()%255)/255.0 green:(random()%255)/255.0 blue:(random()%255)/255.0 alpha:1];
 }
 
-
-
 @interface ViewController ()
 @property (nonatomic, strong) UIButton *ustbCustomBtn;
+@property (nonatomic, assign) CFRunLoopObserverRef observer;
 @end
 
 @implementation ViewController
@@ -27,15 +26,8 @@ static void performSourceEvent (void *info){
 - (void)viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view, typically from a nib.
-    
-    
-    
-    
-    
     CFRunLoopRef currentRunLoop = CFRunLoopGetCurrent();
     //添加观察者
-    
-    
     
     //添加数据源
     CFRunLoopSourceContext context = {0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, performSourceEvent};
@@ -47,19 +39,18 @@ static void performSourceEvent (void *info){
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(xiaoxi) name:@"hh" object:nil];
     
-    
     //开辟常驻线程
     dispatch_queue_t q = dispatch_queue_create("ustbQueue", DISPATCH_QUEUE_SERIAL);
     dispatch_async(q, ^{
         
-//        __block NSInteger totaleNumer = 10;
+        __block NSInteger totaleNumer = 10;
         
         //自定义定时源
         NSTimer *timer = [NSTimer timerWithTimeInterval:1 repeats:YES block:^(NSTimer * _Nonnull timer) {
-//            totaleNumer--;
-//            if (totaleNumer == 0) {
-//                CFRunLoopStop(CFRunLoopGetCurrent());
-//            }
+            totaleNumer--;
+            if (totaleNumer == 0) {
+                CFRunLoopStop(CFRunLoopGetCurrent());
+            }
             NSLog(@"runLoop run!!");
             //发source消息通知主线程工作
             CFRunLoopSourceSignal(source);
@@ -69,14 +60,12 @@ static void performSourceEvent (void *info){
         }];
         //添加定时源
         [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:20]];
-        
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:10]];
+//        CFRunLoopRun();
+//        CFRunLoopStop(CFRunLoopGetCurrent());//这句代码没机会执行，所以stop停不下来runloop，不是这个函数不管用
         NSLog(@"stop");
         
     });
-    
-    
-    
     
     //添加button
     self.view.backgroundColor = [UIColor whiteColor];
@@ -102,14 +91,13 @@ static void performSourceEvent (void *info){
 
 - (void)xiaoxi
 {
-    
-    NSLog(@"消息通知主线程工作");
+    NSLog(@"方法在发出通知的线程工作%@",[NSThread currentThread]);
 }
 - (void)createRunLoopObserverWithObserverType:(CFOptionFlags)flag
 {
     CFRunLoopRef runLoop = CFRunLoopGetCurrent();
     CFStringRef runLoopMode = kCFRunLoopDefaultMode;
-    CFRunLoopObserverRef observer = CFRunLoopObserverCreateWithHandler
+    _observer = CFRunLoopObserverCreateWithHandler
     (kCFAllocatorDefault, flag, true, 0, ^(CFRunLoopObserverRef observer, CFRunLoopActivity _activity) {
         
         switch (_activity) {
@@ -143,14 +131,13 @@ static void performSourceEvent (void *info){
                 break;
         }
     });
-    CFRunLoopAddObserver(runLoop, observer, runLoopMode);
+    CFRunLoopAddObserver(runLoop, _observer, runLoopMode);
 }
 
-
-- (void)didReceiveMemoryWarning {
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+- (void)dealloc {
+    
+    CFRunLoopRemoveObserver(CFRunLoopGetCurrent(), _observer,kCFRunLoopDefaultMode );
+    CFRelease(_observer);
 }
-
 
 @end
